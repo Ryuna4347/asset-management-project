@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/frontend/next.config.ts",
+      "use": "@vercel/next",
+      "config": {
+        "path": "apps/frontend"
+      }
+    },
+    {
+      "src": "apps/backend/src/main.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "apps/backend/src/main.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "apps/frontend/$1"
+    }
+  ],
+  "buildCommand": "pnpm turbo build",
+  "installCommand": "pnpm install"
+}
