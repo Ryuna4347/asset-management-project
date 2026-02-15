@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum AccountType {
+  BROKERAGE // 증권 계좌
+  BANK // 은행 계좌
+  CRYPTO_EXCHANGE // 암호화폐 거래소
+  PENSION // 연금 계좌 (IRP, 퇴직연금 등)
+  OTHER // 기타
+}
+
+enum AssetCategory {
+  DOMESTIC // 국내 주식
+  FOREIGN // 해외 주식
+  BOND // 채권
+  SAVINGS // 예적금
+  CASH // 현금
+  GOLD // 금
+  CRYPTO // 암호화폐
+  REAL_ESTATE // 부동산
+}
+
+enum TransactionType {
+  BUY // 매수
+  SELL // 매도
+  DEPOSIT // 입금
+  WITHDRAWAL // 출금
+  DIVIDEND // 배당
+  INTEREST // 이자
+}
+
+enum OcrScanStatus {
+  PENDING // 업로드 완료, 처리 대기
+  PROCESSING // Gemini API 처리 중
+  REVIEW_PENDING // 처리 완료, 사용자 검토 대기
+  CONFIRMED // 사용자 확인 완료, 자산 반영됨
+  FAILED // 처리 실패
+}
+
+enum MarketType {
+  DOMESTIC // 국내
+  FOREIGN // 해외
+}
+
+// ============================================================
+// Models
+// ============================================================
+
+model Profile {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  fullName  String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts     Account[]
+  assets       Asset[]
+  transactions Transaction[]
+  ocrScans     OcrScan[]
+  assetGoals   AssetGoal[]
+
+  @@map("profiles")
+}
+
+model Account {
+  id            String      @id @default(uuid())
+  userId        String
+  name          String
+  institution   String?
+  accountNumber String?
+  accountType   AccountType
+  description   String?
+  isDefault     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user         Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets       Asset[]
+  transactions Transaction[]
+  ocrScans     OcrScan[]
+
+  @@unique([userId, name])
+  @@map("accounts")
+}
+
+model Asset {
+  id              String        @id @default(uuid())
+  userId          String
+  accountId       String?
+  category        AssetCategory
+  symbol          String?
+  name            String
+  quantity        Decimal       @db.Decimal(20, 8)
+  currency        String
+  lastPriceUpdate DateTime?
+  dividendYield   Decimal?      @db.Decimal(5, 2)
+  dividendMonth   Int[]
+  targetPrice     Decimal?      @db.Decimal(20, 2)
+  memo            String?
+  identifier      String
+  exchangeRate    Decimal?      @db.Decimal(10, 4)
+  currentPrice    Decimal?      @db.Decimal(20, 2)
+  purchasePrice   Decimal?      @db.Decimal(20, 2)
+  totalPrice      Decimal       @db.Decimal(20, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user           Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account        Account?       @relation(fields: [accountId], references: [id])
+  priceHistories PriceHistory[]
+  transactions   Transaction[]
+
+  @@unique([userId, accountId, identifier])
+  @@map("assets")
+}
+
+model Transaction {
+  id              String          @id @default(uuid())
+  userId          String
+  accountId       String?
+  assetId         String?
+  assetName       String?
+  assetSymbol     String?
+  assetCategory   AssetCategory?
+  type            TransactionType
+  amount          Decimal         @db.Decimal(20, 2)
+  quantity        Decimal?        @db.Decimal(20, 8)
+  price           Decimal?        @db.Decimal(20, 2)
+  currency        String
+  exchangeRate    Decimal?        @db.Decimal(10, 4)
+  transactionDate String
+  note            String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  asset   Asset?   @relation(fields: [assetId], references: [id])
+  user    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@map("transactions")
+}
+
+model OcrScan {
+  id                String        @id @default(uuid())
+  userId            String
+  accountId         String?
+  imageUrl          String
+  geminiRawResponse String?       @db.Text
+  parsedJson        Json?
+  status            OcrScanStatus @default(PENDING)
+  errorMessage      String?
+  appSource         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user    Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account?      @relation(fields: [accountId], references: [id])
+  items   OcrScanItem[]
+
+  @@map("ocr_scans")
+}
+
+model OcrScanItem {
+  id             String         @id @default(uuid())
+  scanId         String
+  name           String
+  symbol         String?
+  category       AssetCategory?
+  quantity       Decimal?       @db.Decimal(20, 8)
+  price          Decimal?       @db.Decimal(20, 2)
+  totalValue     Decimal?       @db.Decimal(20, 2)
+  currency       String?        @default("KRW")
+  profitLoss     Decimal?       @db.Decimal(20, 2)
+  profitLossRate Decimal?       @db.Decimal(10, 2)
+  rawText        String?
+  isConfirmed    Boolean        @default(false)
+  linkedAssetId  String?
+  confidence     Decimal?       @db.Decimal(5, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  scan OcrScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@map("ocr_scan_items")
+}
+
+model AssetGoal {
+  id            String   @id @default(uuid())
+  userId        String
+  targetAmount  Decimal  @db.Decimal(20, 2)
+  currentAmount Decimal  @db.Decimal(20, 2)
+  title         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("asset_goals")
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  assetId    String
+  price      Decimal  @db.Decimal(20, 2)
+  recordedAt DateTime
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("price_histories")
+}
+
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  currency  String
+  rate      Decimal  @db.Decimal(20, 8)
+  date      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([currency, date])
+  @@map("exchange_rates")
+}
+
+model Stock {
+  id         String     @id @default(uuid())
+  symbol     String     @unique
+  name       String
+  market     String?
+  marketType MarketType
+  sector     String?
+  industry   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("stocks")
+}

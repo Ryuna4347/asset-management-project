@@ -2,14 +2,20 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local", ".env.local"],
   "globalEnv": [
+    "DATABASE_URL",
+    "DIRECT_URL",
+    "GEMINI_API_KEY",
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
+    "JWT_SECRET",
     "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "NEXT_PUBLIC_API_URL",
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "JWT_SECRET"
+    "PORT",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_KEY"
   ],
   "tasks": {
     "build": {
