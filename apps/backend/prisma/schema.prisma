@@ -12,14 +12,6 @@ datasource db {
 // Enums
 // ============================================================
 
-enum AccountType {
-  BROKERAGE // 증권 계좌
-  BANK // 은행 계좌
-  CRYPTO_EXCHANGE // 암호화폐 거래소
-  PENSION // 연금 계좌 (IRP, 퇴직연금 등)
-  OTHER // 기타
-}
-
 enum AssetCategory {
   DOMESTIC // 국내 주식
   FOREIGN // 해외 주식
@@ -70,26 +62,25 @@ model Profile {
   transactions Transaction[]
   ocrScans     OcrScan[]
   assetGoals   AssetGoal[]
+  portfolioSnapshots PortfolioSnapshot[]
+  backtestResults    BacktestResult[]
 
   @@map("profiles")
 }
 
 model Account {
-  id            String      @id @default(uuid())
-  userId        String
-  name          String
-  institution   String?
-  accountNumber String?
-  accountType   AccountType
-  description   String?
-  isDefault     Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user         Profile       @relation(fields: [userId], references: [id], onDelete: Cascade)
   assets       Asset[]
   transactions Transaction[]
   ocrScans     OcrScan[]
+  portfolioSnapshots PortfolioSnapshot[]
 
   @@unique([userId, name])
   @@map("accounts")
@@ -194,6 +185,62 @@ model OcrScanItem {
   scan OcrScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
 
   @@map("ocr_scan_items")
+}
+
+model PortfolioSnapshot {
+  id           String   @id @default(uuid())
+  userId       String
+  accountId    String?
+  totalValue   Decimal  @db.Decimal(20, 2)
+  totalCost    Decimal  @db.Decimal(20, 2)
+  profitLoss   Decimal  @db.Decimal(20, 2)
+  profitRate   Decimal  @db.Decimal(10, 4)
+  snapshotDate String
+  createdAt    DateTime @default(now())
+
+  user    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountId, snapshotDate])
+  @@index([userId, snapshotDate])
+  @@map("portfolio_snapshots")
+}
+
+model BenchmarkPrice {
+  id        String   @id @default(uuid())
+  symbol    String
+  name      String
+  price     Decimal  @db.Decimal(20, 2)
+  priceDate String
+  createdAt DateTime @default(now())
+
+  @@unique([symbol, priceDate])
+  @@index([symbol, priceDate])
+  @@map("benchmark_prices")
+}
+
+model BacktestResult {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String?
+  symbol          String
+  assetName       String
+  initialAmount   Decimal  @db.Decimal(20, 2)
+  currency        String
+  startDate       String
+  endDate         String
+  benchmarkSymbol String?
+  finalValue      Decimal  @db.Decimal(20, 2)
+  totalReturn     Decimal  @db.Decimal(10, 4)
+  annualReturn    Decimal  @db.Decimal(10, 4)
+  mdd             Decimal  @db.Decimal(10, 4)
+  chartData       Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("backtest_results")
 }
 
 model AssetGoal {

@@ -21,8 +21,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# local env files
+# env files
+.env
+.env.*
 .env*.local
+
+# build cache
+*.tsbuildinfo
 
 # turbo
 .turbo
@@ -37,3 +42,4 @@ pnpm-debug.log*
 PROJECT_PLAN.md
 MEMORY.md
 *.plan.md
+PHASE.md
